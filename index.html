@@ -1,0 +1,40 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f4ee">
+  <title>手相クイズ</title>
+  <link rel="stylesheet" href="./style.css">
+
+  <!-- 問題データ -->
+  <script defer src="./data/questions/life.js"></script>
+  <script defer src="./data/questions/head.js"></script>
+  <script defer src="./data/questions/heart.js"></script>
+  <script defer src="./data/questions/marriage.js"></script>
+  <script defer src="./data/questions/conversation.js"></script>
+  <script defer src="./data/questions/other.js"></script>
+  <script defer src="./data/questions/palmistry.js"></script>
+
+  <!-- 共通テンプレートとクイズ本体 -->
+  <script defer src="./components/palm-template.js"></script>
+  <script defer src="./script.js"></script>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="./">手相クイズ</a>
+    <span class="header-note">3年生物-手相チーム向け</span>
+  </header>
+
+  <main class="container">
+    <section id="app" aria-live="polite">
+      <div class="loading">クイズを準備しています…</div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <p>知識を身につけて、楽しい手相占いを。</p>
+  </footer>
+</body>
+</html>
