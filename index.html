@@ -9,8 +9,6 @@
 
   <!-- 基本デザイン -->
   <link rel="stylesheet" href="./style.css">
-
-  <!-- スマホ向け設定：基本デザインの後に読み込む -->
   <link rel="stylesheet" href="./mobile.css">
 
   <!-- 問題データ -->
@@ -25,8 +23,6 @@
   <!-- 共通テンプレートとクイズ本体 -->
   <script defer src="./components/palm-template.js"></script>
   <script defer src="./script.js"></script>
-
-  <!-- スマホ向け操作補助 -->
   <script defer src="./mobile.js"></script>
 </head>
 <body>
@@ -44,5 +40,20 @@
   <footer class="site-footer">
     <p>知識を身につけて、楽しい手相占いを。</p>
   </footer>
+
+  <!-- オフライン・画像キャッシュ機能を登録 -->
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then(() => {
+            console.log("画像キャッシュ機能を登録しました");
+          })
+          .catch(error => {
+            console.error("画像キャッシュの登録に失敗:", error);
+          });
+      });
+    }
+  </script>
 </body>
 </html>
