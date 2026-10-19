@@ -6,7 +6,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#f7f4ee">
   <title>手相クイズ</title>
+
+  <!-- 基本デザイン -->
   <link rel="stylesheet" href="./style.css">
+
+  <!-- スマホ向け設定：基本デザインの後に読み込む -->
+  <link rel="stylesheet" href="./mobile.css">
 
   <!-- 問題データ -->
   <script defer src="./data/questions/life.js"></script>
@@ -20,6 +25,9 @@
   <!-- 共通テンプレートとクイズ本体 -->
   <script defer src="./components/palm-template.js"></script>
   <script defer src="./script.js"></script>
+
+  <!-- スマホ向け操作補助 -->
+  <script defer src="./mobile.js"></script>
 </head>
 <body>
   <header class="site-header">

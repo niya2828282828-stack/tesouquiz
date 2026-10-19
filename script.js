@@ -12,6 +12,7 @@ const MODES = [
   { id: "multiple", name: "複数選択モード", description: "好きなジャンルを組み合わせる" }
 ];
 
+const LINE_MODES = ["life", "head", "heart", "marriage"];
 const QUESTION_BANK = () => window.PALM_QUESTIONS || {};
 
 let screen = "home";
@@ -112,8 +113,15 @@ function shuffle(items) {
   return result;
 }
 
-// 登録済みの問題数だけを数える。
-// 自動生成問題は加算しない。
+function uniqueNonEmptyStrings(items) {
+  return [...new Set(
+    items.filter(
+      item => typeof item === "string" && item.trim() !== ""
+    )
+  )];
+}
+
+// 登録済みの問題数を数える。
 function countQuestions(modeIds) {
   const bank = QUESTION_BANK();
 
@@ -126,26 +134,51 @@ function countQuestions(modeIds) {
   }, 0);
 }
 
-// 選択肢をシャッフルしても正解番号がずれないようにする。
-function shuffleChoices(question) {
-  const indexedChoices = question.choices.map((choice, index) => ({
-    choice,
-    originalIndex: index
-  }));
+// 線モードの1問目は4択。
+// 2問目以降は正解の選択肢を1つだけ登録する。
+function isValidQuestion(question, modeId, index) {
+  if (
+    !question ||
+    typeof question.question !== "string" ||
+    !Array.isArray(question.choices) ||
+    !Number.isInteger(question.answer) ||
+    question.answer < 0 ||
+    question.answer >= question.choices.length ||
+    typeof question.explanation !== "string"
+  ) {
+    return false;
+  }
 
-  const shuffledChoices = shuffle(indexedChoices);
+  if (!question.choices.every(
+    choice => typeof choice === "string" && choice.trim() !== ""
+  )) {
+    return false;
+  }
 
-  return {
-    ...question,
-    choices: shuffledChoices.map(item => item.choice),
-    answer: shuffledChoices.findIndex(
-      item => item.originalIndex === question.answer
-    )
-  };
+  if (LINE_MODES.includes(modeId)) {
+    if (index === 0) {
+      return question.choices.length === 4;
+    }
+
+    return question.choices.length === 1 && question.answer === 0;
+  }
+
+  const correctChoice = question.choices[question.answer];
+
+  const distractors = Array.isArray(question.distractors)
+    ? question.distractors
+    : question.choices.filter(
+        (choice, choiceIndex) => choiceIndex !== question.answer
+      );
+
+  const validDistractors = uniqueNonEmptyStrings(distractors)
+    .filter(choice => choice !== correctChoice);
+
+  return validDistractors.length >= 3;
 }
 
-// 各ジャンルの登録問題だけを集める。
-// 「生命線はどれでしょう？」などの問題は自動生成しない。
+// 登録された問題をモードごとにまとめる。
+// 線モードでは配列の先頭が固定の1問目。
 function getQuestionPool(modeIds) {
   const bank = QUESTION_BANK();
   const pool = [];
@@ -155,46 +188,133 @@ function getQuestionPool(modeIds) {
       ? bank[modeId]
       : [];
 
-    for (const question of questions) {
+    questions.forEach((question, index) => {
+      if (!isValidQuestion(question, modeId, index)) {
+        return;
+      }
+
       pool.push({
         ...question,
-        mode: modeId
+        mode: modeId,
+        sourceIndex: index
       });
-    }
+    });
   }
 
-  return pool.filter(question =>
-    typeof question.question === "string" &&
-    Array.isArray(question.choices) &&
-    question.choices.length === 4 &&
-    Number.isInteger(question.answer) &&
-    question.answer >= 0 &&
-    question.answer < 4 &&
-    typeof question.explanation === "string"
-  );
+  return pool;
 }
 
-// 先頭の登録問題を必ず1問目にする。
-// 2問目以降はランダムに並べる。
+// 線モードの2問目以降に使う誤答候補。
+// そのモードの1問目は候補から完全に除外する。
+function getLineDistractors(question, pool) {
+  return uniqueNonEmptyStrings(
+    pool
+      .filter(item =>
+        item.mode === question.mode &&
+        item.sourceIndex > 0 &&
+        item.sourceIndex !== question.sourceIndex
+      )
+      .map(item => item.choices[item.answer])
+  ).filter(choice => {
+    const correctChoice = question.choices[question.answer];
+    return choice !== correctChoice;
+  });
+}
+
+// 1問目は登録された4択をそのまま使い、順番だけ変える。
+// それ以外の線モードは、他の問題の正解を誤答候補にする。
+function prepareLineQuestion(question, pool) {
+  let choices;
+
+  if (question.sourceIndex === 0) {
+    const correctChoice = question.choices[question.answer];
+
+    choices = shuffle(question.choices);
+
+    return {
+      ...question,
+      choices,
+      answer: choices.indexOf(correctChoice)
+    };
+  }
+
+  const correctChoice = question.choices[question.answer];
+  const distractors = getLineDistractors(question, pool)
+    .filter(choice => choice !== correctChoice);
+
+  if (distractors.length < 3) {
+    return null;
+  }
+
+  choices = shuffle([
+    correctChoice,
+    ...shuffle(distractors).slice(0, 3)
+  ]);
+
+  return {
+    ...question,
+    choices,
+    answer: choices.indexOf(correctChoice)
+  };
+}
+
+// 会話・その他・手相とはの問題は従来形式もサポートする。
+function prepareGeneralQuestion(question) {
+  const correctChoice = question.choices[question.answer];
+
+  const distractors = Array.isArray(question.distractors)
+    ? question.distractors
+    : question.choices.filter(
+        (choice, index) => index !== question.answer
+      );
+
+  const validDistractors = uniqueNonEmptyStrings(distractors)
+    .filter(choice => choice !== correctChoice);
+
+  if (validDistractors.length < 3) {
+    return null;
+  }
+
+  const choices = shuffle([
+    correctChoice,
+    ...shuffle(validDistractors).slice(0, 3)
+  ]);
+
+  return {
+    ...question,
+    choices,
+    answer: choices.indexOf(correctChoice)
+  };
+}
+
+function prepareQuestion(question, pool) {
+  if (LINE_MODES.includes(question.mode)) {
+    return prepareLineQuestion(question, pool);
+  }
+
+  return prepareGeneralQuestion(question);
+}
+
+// 選択したジャンルの最初の問題を1問目に固定。
+// 2問目以降はランダムに選ぶ。
 function buildQuizQuestions(modeIds, count) {
+  const bank = QUESTION_BANK();
   const pool = getQuestionPool(modeIds);
 
   if (pool.length === 0 || count <= 0) {
     return [];
   }
 
+  // 選択モードの順番で、最初に見つかった有効問題を1問目にする。
   const firstQuestion = pool[0];
   let remainingQuestions = [];
 
   if (count < pool.length) {
-    // 1問目を残し、残りから必要な数だけ選ぶ。
     remainingQuestions = shuffle(pool.slice(1))
       .slice(0, count - 1);
   } else {
-    // 登録問題をすべて使う。
     remainingQuestions = shuffle(pool.slice(1));
 
-    // 指定数に足りない場合は、登録問題から再出題する。
     while (remainingQuestions.length < count - 1) {
       const randomQuestion =
         pool[Math.floor(Math.random() * pool.length)];
@@ -208,7 +328,15 @@ function buildQuizQuestions(modeIds, count) {
     ...remainingQuestions
   ];
 
-  return selectedQuestions.map(shuffleChoices);
+  const preparedQuestions = selectedQuestions.map(question =>
+    prepareQuestion(question, pool)
+  );
+
+  if (preparedQuestions.some(question => question === null)) {
+    return [];
+  }
+
+  return preparedQuestions;
 }
 
 function renderHeader(showBack = false) {
@@ -558,11 +686,47 @@ function renderSettings() {
       return;
     }
 
+    // 選択した各線モードについて、1問目と残りの問題を分けて検証する。
+    const bank = QUESTION_BANK();
+
+    for (const modeId of modes) {
+      if (!LINE_MODES.includes(modeId)) continue;
+
+      const questions = Array.isArray(bank[modeId]) ? bank[modeId] : [];
+
+      const first = questions[0];
+      const rest = questions.slice(1);
+
+      if (!first || !isValidQuestion(first, modeId, 0)) {
+        app.querySelector("#settings-message").textContent =
+          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の1問目は、4つの選択肢が必要です。`;
+        return;
+      }
+
+      if (rest.some((question, index) =>
+        !isValidQuestion(question, modeId, index + 1)
+      )) {
+        app.querySelector("#settings-message").textContent =
+          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の2問目以降は、正解の選択肢を1つだけ登録してください。`;
+        return;
+      }
+
+      const answerPool = uniqueNonEmptyStrings(
+        rest.map(question => question.choices[0])
+      );
+
+      if (answerPool.length < 4) {
+        app.querySelector("#settings-message").textContent =
+          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の2〜9問目に、少なくとも4種類の異なる正解を登録してください。`;
+        return;
+      }
+    }
+
     quizQuestions = buildQuizQuestions(modes, questionCount);
 
     if (quizQuestions.length === 0) {
       app.querySelector("#settings-message").textContent =
-        "出題できる問題がありません。問題データを確認してください。";
+        "4択を作れない問題があります。問題の正解や誤答候補を確認してください。";
       return;
     }
 

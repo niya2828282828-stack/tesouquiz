@@ -1,9 +1,10 @@
+
 window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 
 window.PALM_QUESTIONS.life = [
   {
-    question: "生命線はどれでしょう？",
-    image: "image/image01.png",
+    question: "生命線はどれでしょう",
+    image: "image/image02.jpg",
     choices: [
       "正解の選択肢を入力してください",
       "正解以外の選択肢を入力してください",
@@ -11,102 +12,62 @@ window.PALM_QUESTIONS.life = [
       "正解以外の選択肢を入力してください"
     ],
     answer: 0,
-    explanation: "正解です。"
+    explanation: "生命線は親指の付け根から手首にかけて弧を描く線。"
   },
   {
-    question: "2.image02使用.問題文を入力してください",
-    image: "image/image02.png",
-    choices: [
-      "2.正解の選択肢を入力してください",
-      "2.正解以外の選択肢を入力してください",
-      "2.正解以外の選択肢を入力してください",
-      "2.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image03.jpg",
+    choices: ["体力は比較的低いタイプ。自己管理を怠らなければ健康に過ごせる。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:手のひらの真ん中まで到達しない"
   },
   {
-    question: "3.image03使用.問題文を入力してください",
-    image: "image/image03.png",
-    choices: [
-      "3.正解の選択肢を入力してください",
-      "3.正解以外の選択肢を入力してください",
-      "3.正解以外の選択肢を入力してください",
-      "3.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image04.jpg",
+    choices: ["頑丈な身体の持ち主で健康にも体力にも恵まれやすいタイプ。過信は禁物。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:手首に届くほど長い"
   },
   {
-    question: "4.image04使用.問題文を入力してください",
-    image: "image/image04.png",
-    choices: [
-      "4.正解の選択肢を入力してください",
-      "4.正解以外の選択肢を入力してください",
-      "4.正解以外の選択肢を入力してください",
-      "4.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image05.jpg",
+    choices: ["体力的にも精神的にも淡白なタイプ。無理せず休憩することが大事。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:カーブせず直線的"
   },
   {
-    question: "5.image05使用.問題文を入力してください",
-    image: "image/image05.png",
-    choices: [
-      "5.正解の選択肢を入力してください",
-      "5.正解以外の選択肢を入力してください",
-      "5.正解以外の選択肢を入力してください",
-      "5.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image06.jpg",
+    choices: ["疲れやすかったり無理が効かないタイプ。無茶をしないので怪我などは少ない。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:薄い"
   },
   {
-    question: "6.image06使用.問題文を入力してください",
-    image: "image/image06.png",
-    choices: [
-      "6.正解の選択肢を入力してください",
-      "6.正解以外の選択肢を入力してください",
-      "6.正解以外の選択肢を入力してください",
-      "6.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image07.jpg",
+    choices: ["体力が弱く、周りのエネルギーに圧倒されやすいタイプ。自信が持てないのかも。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:ほぼない"
   },
   {
-    question: "7.image07使用.問題文を入力してください",
-    image: "image/image07.png",
-    choices: [
-      "7.正解の選択肢を入力してください",
-      "7.正解以外の選択肢を入力してください",
-      "7.正解以外の選択肢を入力してください",
-      "7.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image08.jpg",
+    choices: ["生命力も精神力も強く、性格的にも積極的なタイプ。ただし病気を気合いで直そうとする傾向も。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:太くくっきり"
   },
   {
-    question: "8.image08使用.問題文を入力してください",
-    image: "image/image08.png",
-    choices: [
-      "8.正解の選択肢を入力してください",
-      "8.正解以外の選択肢を入力してください",
-      "8.正解以外の選択肢を入力してください",
-      "8.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image09.jpg",
+    choices: ["何事も根性と忍耐で後超えられる精神力を持っているタイプ。生命力が非常に強い。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:並行してもう一本の線がある"
   },
   {
-    question: "9.image09使用.問題文を入力してください",
-    image: "image/image09.png",
-    choices: [
-      "9.正解の選択肢を入力してください",
-      "9.正解以外の選択肢を入力してください",
-      "9.正解以外の選択肢を入力してください",
-      "9.正解以外の選択肢を入力してください"
-    ],
+    question: "この線が表わすのは？",
+    image: "image/image10.jpg",
+    choices: ["体力も精力も有り余るので動き回ることが多い。"],
     answer: 0,
-    explanation: "解説を入力してください。"
+    explanation: "どんな線か:手のひらの真ん中を通るほど大きくカーブしている"
   }
 ];
