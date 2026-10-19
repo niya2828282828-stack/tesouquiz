@@ -12,7 +12,7 @@ window.PALM_QUESTIONS.life = [
       "正解以外の選択肢を入力してください"
     ],
     answer: 0,
-    explanation: "生命線は親指の付け根から手首にかけて弧を描く線。"
+    explanation: "生命線は親指の付け根から手首にかけて弧を描く線です。"
   },
   {
     question: "この線が表わすのは？",

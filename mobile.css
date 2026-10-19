@@ -1,4 +1,3 @@
-
 /* スマホ向け操作設定 */
 
 /* スクロールバーを非表示にする。スクロール機能は維持 */
@@ -7,8 +6,8 @@ body,
 #app,
 .panel,
 .question-image-wrap {
-  scrollbar-width: none;       /* Firefox */
-  -ms-overflow-style: none;    /* 古い Edge / IE */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 
 html::-webkit-scrollbar,
@@ -16,26 +15,26 @@ body::-webkit-scrollbar,
 #app::-webkit-scrollbar,
 .panel::-webkit-scrollbar,
 .question-image-wrap::-webkit-scrollbar {
-  display: none;               /* Chrome / Safari */
+  display: none;
 }
 
-/* ダブルタップによる拡大を抑制する */
-html {
-  touch-action: manipulation;
-}
-
-/* 問題の画像は通常のスクロール操作を妨げない */
-.question-image {
-  touch-action: pan-x pan-y pinch-zoom;
-  -webkit-user-select: none;
-  user-select: none;
-}
-
-/* ボタン類のダブルタップ拡大を抑制する */
+/*
+ * ダブルタップによる拡大を抑制する。
+ * 通常のタップ、スクロール、ピンチ拡大は許可する。
+ */
+html,
+body,
 button,
 a,
 input,
 select,
-textarea {
+textarea,
+.question-image {
   touch-action: manipulation;
+}
+
+/* 画像を誤って選択しにくくする */
+.question-image {
+  -webkit-user-select: none;
+  user-select: none;
 }

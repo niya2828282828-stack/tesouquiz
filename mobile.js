@@ -1,26 +1,15 @@
 
 /*
  * スマホ向け操作補助
- * ・ダブルタップによる拡大を抑制
- * ・スクロールやピンチ操作は妨げない
+ * ・通常の連続タップを妨げない
+ * ・タップイベントを一律にキャンセルしない
+ * ・ダブルタップによる拡大は mobile.css の
+ *   touch-action: manipulation で抑制する
  */
 
 (() => {
-  let lastTouchEnd = 0;
+  "use strict";
 
-  document.addEventListener(
-    "touchend",
-    event => {
-      const now = Date.now();
-      const elapsed = now - lastTouchEnd;
-
-      // 短時間の連続タップによる拡大を抑制
-      if (elapsed > 0 && elapsed < 300) {
-        event.preventDefault();
-      }
-
-      lastTouchEnd = now;
-    },
-    { passive: false }
-  );
+  // 対応ブラウザで、操作設定が適用されていることを確認できるようにする
+  document.documentElement.classList.add("mobile-interaction-ready");
 })();
