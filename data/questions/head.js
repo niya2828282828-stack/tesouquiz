@@ -4,12 +4,12 @@ window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 window.PALM_QUESTIONS.head = [
   {
     question: "頭脳線はどれでしょう",
-    image: "image/image11.jpg",
+    image: "image/image02.jpg",
     choices: [
-      "正解の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください"
+      "緑色",
+      "青色",
+      "紫色",
+      "ピンク色"
     ],
     answer: 0,
     explanation: "頭脳線は親指の付け根と人差し指の付け根の間から手のひらを横切り反対側に向かう線です。"

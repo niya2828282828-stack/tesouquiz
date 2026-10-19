@@ -4,12 +4,12 @@ window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 window.PALM_QUESTIONS.heart = [
   {
     question: "感情線はどれでしょう",
-    image: "image/image20.jpg",
+    image: "image/image02.jpg",
     choices: [
-      "正解の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください"
+      "ピンク色",
+      "紫色",
+      "青色",
+      "緑色"
     ],
     answer: 0,
     explanation: "感情線は小指の付け根の下あたりから中指・人差し指方向に伸びる線です。"

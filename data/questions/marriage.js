@@ -4,12 +4,12 @@ window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 window.PALM_QUESTIONS.marriage = [
   {
     question: "結婚線はどれでしょう",
-    image: "image/image29.jpg",
+    image: "image/image02.jpg",
     choices: [
-      "正解の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください",
-      "正解以外の選択肢を入力してください"
+      "紫色",
+      "ピンク色",
+      "緑色",
+      "青色"
     ],
     answer: 0,
     explanation: "結婚線は感情線と小指の間、手の側面から中心に向かって伸びる線です。"
