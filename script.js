@@ -1,4 +1,3 @@
-
 const app = document.getElementById("app");
 
 const MODES = [
@@ -7,7 +6,7 @@ const MODES = [
   { id: "heart", name: "感情線", description: "感情線の意味や見方" },
   { id: "marriage", name: "運命線", description: "運命線の意味や見方" },
   { id: "conversation", name: "会話", description: "占い中の受け答え" },
-  { id: "other", name: "その他の線", description: "運命線などの知識" },
+  { id: "other", name: "その他の線", description: "結婚線などの知識" },
   { id: "palmistry", name: "手相とは", description: "手相の基礎や考え方" },
   { id: "multiple", name: "複数選択モード", description: "好きなジャンルを組み合わせる" }
 ];
@@ -298,14 +297,12 @@ function prepareQuestion(question, pool) {
 // 選択したジャンルの最初の問題を1問目に固定。
 // 2問目以降はランダムに選ぶ。
 function buildQuizQuestions(modeIds, count) {
-  const bank = QUESTION_BANK();
   const pool = getQuestionPool(modeIds);
 
   if (pool.length === 0 || count <= 0) {
     return [];
   }
 
-  // 選択モードの順番で、最初に見つかった有効問題を1問目にする。
   const firstQuestion = pool[0];
   let remainingQuestions = [];
 
@@ -686,7 +683,6 @@ function renderSettings() {
       return;
     }
 
-    // 選択した各線モードについて、1問目と残りの問題を分けて検証する。
     const bank = QUESTION_BANK();
 
     for (const modeId of modes) {
@@ -780,14 +776,14 @@ function renderQuestion() {
 
       ${imageHTML}
 
-      <h1 class="question-title">${escapeHTML(question.question)}</h1>
+      <h1 class="question-title" style="white-space: pre-line;">${escapeHTML(question.question)}</h1>
 
       <div class="choices">
         ${question.choices.map((choice, index) => `
           <button type="button" class="choice-button"
             data-choice="${index}">
             <span class="choice-letter">${["A", "B", "C", "D"][index]}</span>
-            <span>${escapeHTML(choice)}</span>
+            <span style="white-space: pre-line; font-weight: 700;">${escapeHTML(choice)}</span>
           </button>
         `).join("")}
       </div>
