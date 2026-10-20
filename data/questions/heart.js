@@ -7,7 +7,7 @@ window.PALM_QUESTIONS.heart = [
     image: "image/image02.jpg",
     choices: [
       "ピンク色",
-      "紫色",
+      "黄色",
       "青色",
       "緑色"
     ],

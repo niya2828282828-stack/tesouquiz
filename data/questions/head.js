@@ -8,7 +8,7 @@ window.PALM_QUESTIONS.head = [
     choices: [
       "緑色",
       "青色",
-      "紫色",
+      "黄色",
       "ピンク色"
     ],
     answer: 0,

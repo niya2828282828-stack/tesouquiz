@@ -6,68 +6,68 @@ window.PALM_QUESTIONS.marriage = [
     question: "結婚線はどれでしょう",
     image: "image/image02.jpg",
     choices: [
-      "紫色",
+      "黄色",
       "ピンク色",
       "緑色",
       "青色"
     ],
     answer: 0,
-    explanation: "結婚線は感情線と小指の間、手の側面から中心に向かって伸びる線です。"
+    explanation: "運命線は出発点はどこであっても中指の付け根当たりに向かって伸びる線です。"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image30.jpg",
-    choices: ["玉の輿に乗った上に相思相愛。結婚でなにもかも幸せに慣れるタイプ。"],
+    choices: ["下積み期間がすごく長く、55歳頃に開花しする。コツコツ重ねた努力と誠意が認められる。"],
     answer: 0,
-    explanation: "どんな線か:薬指の下に刻まれている線に届いている"
+    explanation: "どんな線か:始まりが感情線あたり"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image31.jpg",
-    choices: ["玉の輿に乗ったり夫婦で協力して財を築ける。夫婦仲も良好。"],
+    choices: ["下積み期間が長く、35歳頃から活躍の場が広がる。経験から得た知恵が武器になる。"],
     answer: 0,
-    explanation: "どんな線か:薬指の下の膨らみまで伸びている"
+    explanation: "どんな線か:始まりが頭脳線あたり"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image32.jpg",
-    choices: ["相手を嫌いになったり衝突したりするわけではないが、結婚生活はドライになりやすい。"],
+    choices: ["リーダーが向いていて、仕事運が強い。"],
     answer: 0,
-    explanation: "どんな線か:末端にいくほど細くなっていく"
+    explanation: "どんな線か:くっきり線がある"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image33.jpg",
-    choices: ["愛情が冷めやすく夫婦喧嘩が多くなる。別居や離婚を選ぶ可能性が高い。"],
+    choices: ["明るく賢い。人気者になり、恵まれた環境で働くことが多い。"],
     answer: 0,
-    explanation: "どんな線か:末端が下向きにカーブし感情線を越える"
+    explanation: "どんな線か:手のひらの真ん中をまっすぐ伸びる"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image34.jpg",
-    choices: ["夫婦間の愛情が冷めやすく、家庭内別居状態になる場合が。"],
+    choices: ["人生の一時期仕事が落ち込む。その期間は休養に充てるとよい。"],
     answer: 0,
-    explanation: "どんな線か:末端が下向きにカーブし感情線に届く"
+    explanation: "どんな線か:線の途中に大きめの空白がある"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image35.jpg",
-    choices: ["愛情は続き分かれないが、相手以外にも子供やペットなどに注ぐ愛情が多くなる。"],
+    choices: ["揉まれながら成長発展できる。チャンスも多い。浮き沈みが激しいので仕事が続かない場合も。"],
     answer: 0,
-    explanation: "どんな線か:末端が三本以上に分かれる"
+    explanation: "どんな線か:途中で何度か切れている"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image36.jpg",
-    choices: ["夫婦が別々の方向を向いてしまう。愛情が冷めきってしまい別居や離婚を選びやすくなる。"],
+    choices: ["非常に強い仕事運を持つ。分野が違う三つ以上の仕事を並行してこなせる。"],
     answer: 0,
-    explanation: "どんな線か:末端が二股に分かれている"
+    explanation: "どんな線か:並行している運命線が三本以上ある"
   },
   {
     question: "この線が表わすのは？",
     image: "image/image37.jpg",
-    choices: ["初恋の相手や初めての恋人と結婚する可能性が高い。相思相愛で障害幸せな夫婦関係を築いていける。"],
+    choices: ["強い仕事運の持ち主で二足の草鞋を履くことができる。どちらも中途半端にならないよう注意。"],
     answer: 0,
-    explanation: "どんな線か:一本だけ"
+    explanation: "どんな線か:並行している運命線が二本ある"
   }
 ];

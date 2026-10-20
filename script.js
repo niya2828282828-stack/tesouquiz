@@ -5,7 +5,7 @@ const MODES = [
   { id: "life", name: "生命線", description: "生命線の意味や見方" },
   { id: "head", name: "頭脳線", description: "頭脳線の意味や見方" },
   { id: "heart", name: "感情線", description: "感情線の意味や見方" },
-  { id: "marriage", name: "結婚線", description: "結婚線の意味や見方" },
+  { id: "marriage", name: "運命線", description: "運命線の意味や見方" },
   { id: "conversation", name: "会話", description: "占い中の受け答え" },
   { id: "other", name: "その他の線", description: "運命線などの知識" },
   { id: "palmistry", name: "手相とは", description: "手相の基礎や考え方" },
