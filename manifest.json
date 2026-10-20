@@ -1,0 +1,21 @@
+
+{
+  "id": "./",
+  "name": "手相クイズ",
+  "short_name": "手相クイズ",
+  "description": "知識を身につけて、楽しい手相占いを。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f4ee",
+  "theme_color": "#f7f4ee",
+  "icons": [
+    {
+      "src": "./image/image39.jpg",
+      "sizes": "any",
+      "type": "image/jpeg",
+      "purpose": "any"
+    }
+  ]
+}
