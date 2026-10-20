@@ -5,10 +5,8 @@ window.PALM_QUESTIONS.conversation = [
     question: "image/image38.jpg/秘められた才能をみてほしい！！何をみる？/jpg--",
     image: "image/image38.jpg",
     choices: [
-      "④",
       "②",
-      "③",
-      "①"
+      "①",
     ],
     answer: 0,
     explanation: "秘められた才能は左手に現れます。左手は正対してみると右側に位置します。"
