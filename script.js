@@ -530,7 +530,7 @@ function renderHome() {
     <section class="panel">
       <p class="eyebrow">CULTURAL FESTIVAL</p>
       <h1>手相クイズ</h1>
-      <p class="intro">知識を身につけて、自信を持って占えるようになろう。</p>
+      <p class="intro">覚える量多くて大変だけどまぁがんばろう。</p>
 
       <h2>出題モードを選ぶ</h2>
 
@@ -741,7 +741,7 @@ function renderSettings() {
 
     if (quizQuestions.length === 0) {
       app.querySelector("#settings-message").textContent =
-        "4択を作れない問題があります。問題の正解や誤答候補を確認してください。";
+        "このモードはまだ準備中です。てか需要が分からないので要望なかったら多分一生準備中です。";
       return;
     }
 
@@ -925,7 +925,7 @@ function renderResult() {
     ${renderHeader(true)}
     <section class="panel result-panel" style="color:var(--text)">
       <p class="eyebrow">QUIZ COMPLETE</p>
-      <h1>お疲れさま！</h1>
+      <h1>スクショでリーダーに自慢しよう</h1>
 
       <p class="result-score" style="color:var(--text)">
         ${correctCount} <span>/ ${total}問正解</span>
