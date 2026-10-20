@@ -2,7 +2,7 @@
 window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 window.PALM_QUESTIONS.conversation = [
   {
-    question: "image/image38.jpg/秘められた才能をみてほしい！！何をみる？/jpg--",
+    question: "秘められた才能をみてほしい！！何をみる？",
     image: "image/image38.jpg",
     choices: [
       "②",
