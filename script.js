@@ -1,3 +1,4 @@
+
 const app = document.getElementById("app");
 
 const MODES = [
@@ -133,8 +134,7 @@ function countQuestions(modeIds) {
   }, 0);
 }
 
-// 線モードの1問目は4択。
-// 2問目以降は正解の選択肢を1つだけ登録する。
+// 問題データが正しい形式か確認する。
 function isValidQuestion(question, modeId, index) {
   if (
     !question ||
@@ -154,6 +154,7 @@ function isValidQuestion(question, modeId, index) {
     return false;
   }
 
+  // 生命線・頭脳線・感情線・運命線の問題
   if (LINE_MODES.includes(modeId)) {
     if (index === 0) {
       return question.choices.length === 4;
@@ -162,6 +163,12 @@ function isValidQuestion(question, modeId, index) {
     return question.choices.length === 1 && question.answer === 0;
   }
 
+  // 会話モードの1問目だけは2択を許可する。
+  if (modeId === "conversation" && index === 0) {
+    return question.choices.length === 2;
+  }
+
+  // それ以外の問題は、4択を作れる誤答候補が必要。
   const correctChoice = question.choices[question.answer];
 
   const distractors = Array.isArray(question.distractors)
@@ -177,7 +184,6 @@ function isValidQuestion(question, modeId, index) {
 }
 
 // 登録された問題をモードごとにまとめる。
-// 線モードでは配列の先頭が固定の1問目。
 function getQuestionPool(modeIds) {
   const bank = QUESTION_BANK();
   const pool = [];
@@ -204,7 +210,6 @@ function getQuestionPool(modeIds) {
 }
 
 // 線モードの2問目以降に使う誤答候補。
-// そのモードの1問目は候補から完全に除外する。
 function getLineDistractors(question, pool) {
   return uniqueNonEmptyStrings(
     pool
@@ -220,8 +225,7 @@ function getLineDistractors(question, pool) {
   });
 }
 
-// 1問目は登録された4択をそのまま使い、順番だけ変える。
-// それ以外の線モードは、他の問題の正解を誤答候補にする。
+// 線モードの問題を準備する。
 function prepareLineQuestion(question, pool) {
   let choices;
 
@@ -257,10 +261,25 @@ function prepareLineQuestion(question, pool) {
   };
 }
 
-// 会話・その他・手相とはの問題は従来形式もサポートする。
+// 会話・その他・手相とはの問題を準備する。
 function prepareGeneralQuestion(question) {
   const correctChoice = question.choices[question.answer];
 
+  // 会話モードの最初の問題は、登録された2択をそのまま使う。
+  if (
+    question.mode === "conversation" &&
+    question.sourceIndex === 0
+  ) {
+    const choices = shuffle(question.choices);
+
+    return {
+      ...question,
+      choices,
+      answer: choices.indexOf(correctChoice)
+    };
+  }
+
+  // それ以外は従来どおり4択を作る。
   const distractors = Array.isArray(question.distractors)
     ? question.distractors
     : question.choices.filter(
@@ -294,7 +313,7 @@ function prepareQuestion(question, pool) {
   return prepareGeneralQuestion(question);
 }
 
-// 選択したジャンルの最初の問題を1問目に固定。
+// 選択したジャンルの最初の問題を1問目に固定する。
 // 2問目以降はランダムに選ぶ。
 function buildQuizQuestions(modeIds, count) {
   const pool = getQuestionPool(modeIds);
