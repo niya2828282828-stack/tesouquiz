@@ -3,7 +3,7 @@ window.PALM_QUESTIONS = window.PALM_QUESTIONS || {};
 
 window.PALM_QUESTIONS.marriage = [
   {
-    question: "結婚線はどれでしょう",
+    question: "運命線はどれでしょう",
     image: "image/image02.jpg",
     choices: [
       "黄色",
