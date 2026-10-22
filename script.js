@@ -15,18 +15,13 @@ const MODES = [
 const LINE_MODES = ["life", "head", "heart", "marriage"];
 const QUESTION_BANK = () => window.PALM_QUESTIONS || {};
 
-let screen = "home";
-let currentMode = "life";
-let selectedModes = ["life", "head"];
-let questionCount = 10;
-
 const APPEARANCE_KEY = "tesouquiz-appearance";
-let appearanceReturnScreen = "home";
+const SOUND_KEY = "tesouquiz-sound";
 
 const ACCENTS = [
-  { id: "black", name: "ブラック", color: "#55585a" },
-  { id: "white", name: "ホワイト", color: "#d8d5cc" },
-  { id: "blue", name: "ブルー", color: "#789bb8" },
+  { id: "black", name: "ブラック", color: "#686b6b" },
+  { id: "white", name: "ホワイト", color: "#c7c5bc" },
+  { id: "blue", name: "ブルー", color: "#86a9c5" },
   { id: "light-blue", name: "ライトブルー", color: "#b8d9e8" },
   { id: "green", name: "グリーン", color: "#789477" },
   { id: "orange", name: "オレンジ", color: "#d99a62" },
@@ -34,10 +29,19 @@ const ACCENTS = [
   { id: "light-orange", name: "ライトオレンジ", color: "#efc69b" }
 ];
 
+let screen = "home";
+let currentMode = "life";
+let selectedModes = ["life", "head"];
+let questionCount = 10;
+let settingsReturnScreen = "home";
+let settingsReturnAnswered = false;
+
 let quizQuestions = [];
 let currentIndex = 0;
 let correctCount = 0;
 let answered = false;
+
+/* 保存済み設定 */
 
 function loadAppearance() {
   try {
@@ -56,7 +60,136 @@ function loadAppearance() {
   }
 }
 
+function loadSoundSettings() {
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(SOUND_KEY) || "{}"
+    );
+    const volume = Number(saved.volume);
+
+    return {
+      volume:
+        Number.isInteger(volume) && volume >= 0 && volume <= 5
+          ? volume
+          : 2
+    };
+  } catch {
+    return { volume: 2 };
+  }
+}
+
 let appearance = loadAppearance();
+let soundSettings = loadSoundSettings();
+
+/* BGM：曲の終了後に3秒空けて再生 */
+
+const bgm = new Audio("audio/bgm.m4a");
+bgm.loop = false;
+bgm.preload = "auto";
+
+let audioStarted = false;
+let bgmTimer = null;
+let playRequestId = 0;
+
+function saveSoundSettings() {
+  try {
+    localStorage.setItem(
+      SOUND_KEY,
+      JSON.stringify(soundSettings)
+    );
+  } catch (error) {}
+}
+
+function clearBgmTimer() {
+  if (bgmTimer !== null) {
+    clearTimeout(bgmTimer);
+    bgmTimer = null;
+  }
+}
+
+function stopBGM() {
+  playRequestId++;
+  clearBgmTimer();
+  bgm.pause();
+
+  try {
+    bgm.currentTime = 0;
+  } catch (error) {}
+
+  audioStarted = false;
+}
+
+function startBGM() {
+  if (soundSettings.volume <= 0) {
+    stopBGM();
+    return;
+  }
+
+  clearBgmTimer();
+  bgm.volume = soundSettings.volume / 5;
+
+  if (!bgm.paused) {
+    audioStarted = true;
+    return;
+  }
+
+  const requestId = ++playRequestId;
+
+  bgm.play()
+    .then(() => {
+      if (
+        requestId !== playRequestId ||
+        soundSettings.volume <= 0
+      ) {
+        bgm.pause();
+        return;
+      }
+
+      audioStarted = true;
+    })
+    .catch(() => {
+      // 自動再生が許可されない場合は、次の操作で再試行する。
+    });
+}
+
+function applyVolume() {
+  bgm.volume = soundSettings.volume / 5;
+  saveSoundSettings();
+
+  if (soundSettings.volume === 0) {
+    stopBGM();
+  } else if (audioStarted && !bgm.paused) {
+    bgm.volume = soundSettings.volume / 5;
+  }
+}
+
+bgm.addEventListener("ended", () => {
+  audioStarted = false;
+
+  if (soundSettings.volume <= 0) return;
+
+  clearBgmTimer();
+
+  bgmTimer = setTimeout(() => {
+    bgmTimer = null;
+
+    if (soundSettings.volume > 0) {
+      startBGM();
+    }
+  }, 3000);
+});
+
+document.addEventListener("pointerdown", () => {
+  if (
+    soundSettings.volume > 0 &&
+    bgm.paused &&
+    bgmTimer === null
+  ) {
+    startBGM();
+  }
+}, { passive: true });
+
+/* 外観 */
 
 function applyAppearance() {
   document.documentElement.dataset.theme = appearance.theme;
@@ -68,28 +201,6 @@ function applyAppearance() {
       JSON.stringify(appearance)
     );
   } catch (error) {}
-}
-
-function openAppearanceSettings() {
-  appearanceReturnScreen = screen;
-  renderAppearanceSettings();
-}
-
-function returnFromAppearanceSettings() {
-  if (appearanceReturnScreen === "settings") {
-    renderSettings();
-  } else if (appearanceReturnScreen === "quiz") {
-    const wasAnswered = answered;
-    renderQuestion();
-
-    if (wasAnswered) {
-      restoreAnsweredQuestion();
-    }
-  } else if (appearanceReturnScreen === "result") {
-    renderResult();
-  } else {
-    renderHome();
-  }
 }
 
 function escapeHTML(value) {
@@ -121,20 +232,18 @@ function uniqueNonEmptyStrings(items) {
   )];
 }
 
-// 登録済みの問題数を数える。
 function countQuestions(modeIds) {
   const bank = QUESTION_BANK();
 
   return modeIds.reduce((total, id) => {
-    const registered = Array.isArray(bank[id])
-      ? bank[id].length
-      : 0;
-
-    return total + registered;
+    return total + (
+      Array.isArray(bank[id]) ? bank[id].length : 0
+    );
   }, 0);
 }
 
-// 問題データが正しい形式か確認する。
+/* 問題データの検証 */
+
 function isValidQuestion(question, modeId, index) {
   if (
     !question ||
@@ -154,7 +263,6 @@ function isValidQuestion(question, modeId, index) {
     return false;
   }
 
-  // 生命線・頭脳線・感情線・運命線の問題
   if (LINE_MODES.includes(modeId)) {
     if (index === 0) {
       return question.choices.length === 4;
@@ -163,27 +271,22 @@ function isValidQuestion(question, modeId, index) {
     return question.choices.length === 1 && question.answer === 0;
   }
 
-  // 会話モードの1問目だけは2択を許可する。
   if (modeId === "conversation" && index === 0) {
     return question.choices.length === 2;
   }
 
-  // それ以外の問題は、4択を作れる誤答候補が必要。
   const correctChoice = question.choices[question.answer];
 
   const distractors = Array.isArray(question.distractors)
     ? question.distractors
     : question.choices.filter(
-        (choice, choiceIndex) => choiceIndex !== question.answer
+        (_, i) => i !== question.answer
       );
 
-  const validDistractors = uniqueNonEmptyStrings(distractors)
-    .filter(choice => choice !== correctChoice);
-
-  return validDistractors.length >= 3;
+  return uniqueNonEmptyStrings(distractors)
+    .filter(choice => choice !== correctChoice).length >= 3;
 }
 
-// 登録された問題をモードごとにまとめる。
 function getQuestionPool(modeIds) {
   const bank = QUESTION_BANK();
   const pool = [];
@@ -194,9 +297,7 @@ function getQuestionPool(modeIds) {
       : [];
 
     questions.forEach((question, index) => {
-      if (!isValidQuestion(question, modeId, index)) {
-        return;
-      }
+      if (!isValidQuestion(question, modeId, index)) return;
 
       pool.push({
         ...question,
@@ -209,7 +310,6 @@ function getQuestionPool(modeIds) {
   return pool;
 }
 
-// 線モードの2問目以降に使う誤答候補。
 function getLineDistractors(question, pool) {
   return uniqueNonEmptyStrings(
     pool
@@ -219,20 +319,16 @@ function getLineDistractors(question, pool) {
         item.sourceIndex !== question.sourceIndex
       )
       .map(item => item.choices[item.answer])
-  ).filter(choice => {
-    const correctChoice = question.choices[question.answer];
-    return choice !== correctChoice;
-  });
+  ).filter(
+    choice => choice !== question.choices[question.answer]
+  );
 }
 
-// 線モードの問題を準備する。
 function prepareLineQuestion(question, pool) {
-  let choices;
+  const correctChoice = question.choices[question.answer];
 
   if (question.sourceIndex === 0) {
-    const correctChoice = question.choices[question.answer];
-
-    choices = shuffle(question.choices);
+    const choices = shuffle(question.choices);
 
     return {
       ...question,
@@ -241,15 +337,11 @@ function prepareLineQuestion(question, pool) {
     };
   }
 
-  const correctChoice = question.choices[question.answer];
-  const distractors = getLineDistractors(question, pool)
-    .filter(choice => choice !== correctChoice);
+  const distractors = getLineDistractors(question, pool);
 
-  if (distractors.length < 3) {
-    return null;
-  }
+  if (distractors.length < 3) return null;
 
-  choices = shuffle([
+  const choices = shuffle([
     correctChoice,
     ...shuffle(distractors).slice(0, 3)
   ]);
@@ -261,11 +353,9 @@ function prepareLineQuestion(question, pool) {
   };
 }
 
-// 会話・その他・手相とはの問題を準備する。
 function prepareGeneralQuestion(question) {
   const correctChoice = question.choices[question.answer];
 
-  // 会話モードの最初の問題は、登録された2択をそのまま使う。
   if (
     question.mode === "conversation" &&
     question.sourceIndex === 0
@@ -279,19 +369,16 @@ function prepareGeneralQuestion(question) {
     };
   }
 
-  // それ以外は従来どおり4択を作る。
   const distractors = Array.isArray(question.distractors)
     ? question.distractors
     : question.choices.filter(
-        (choice, index) => index !== question.answer
+        (_, i) => i !== question.answer
       );
 
   const validDistractors = uniqueNonEmptyStrings(distractors)
     .filter(choice => choice !== correctChoice);
 
-  if (validDistractors.length < 3) {
-    return null;
-  }
+  if (validDistractors.length < 3) return null;
 
   const choices = shuffle([
     correctChoice,
@@ -306,21 +393,15 @@ function prepareGeneralQuestion(question) {
 }
 
 function prepareQuestion(question, pool) {
-  if (LINE_MODES.includes(question.mode)) {
-    return prepareLineQuestion(question, pool);
-  }
-
-  return prepareGeneralQuestion(question);
+  return LINE_MODES.includes(question.mode)
+    ? prepareLineQuestion(question, pool)
+    : prepareGeneralQuestion(question);
 }
 
-// 選択したジャンルの最初の問題を1問目に固定する。
-// 2問目以降はランダムに選ぶ。
 function buildQuizQuestions(modeIds, count) {
   const pool = getQuestionPool(modeIds);
 
-  if (pool.length === 0 || count <= 0) {
-    return [];
-  }
+  if (pool.length === 0 || count <= 0) return [];
 
   const firstQuestion = pool[0];
   let remainingQuestions = [];
@@ -332,37 +413,37 @@ function buildQuizQuestions(modeIds, count) {
     remainingQuestions = shuffle(pool.slice(1));
 
     while (remainingQuestions.length < count - 1) {
-      const randomQuestion =
-        pool[Math.floor(Math.random() * pool.length)];
-
-      remainingQuestions.push(randomQuestion);
+      remainingQuestions.push(
+        pool[Math.floor(Math.random() * pool.length)]
+      );
     }
   }
 
-  const selectedQuestions = [
-    firstQuestion,
-    ...remainingQuestions
-  ];
+  const prepared = [firstQuestion, ...remainingQuestions]
+    .map(question => prepareQuestion(question, pool));
 
-  const preparedQuestions = selectedQuestions.map(question =>
-    prepareQuestion(question, pool)
-  );
-
-  if (preparedQuestions.some(question => question === null)) {
-    return [];
-  }
-
-  return preparedQuestions;
+  return prepared.some(question => question === null)
+    ? []
+    : prepared;
 }
+
+/* ヘッダー */
 
 function renderHeader(showBack = false) {
   return `
     <div class="app-toolbar">
       <div class="toolbar-left">
         ${showBack ? `
-          <button type="button" class="nav-button" id="back-button"
-            aria-label="ひとつ前の画面に戻る" title="戻る">
-            <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-icon">
+          <button
+            type="button"
+            class="nav-button"
+            id="back-button"
+            aria-label="戻る"
+            title="戻る">
+
+            <svg viewBox="0 0 24 24"
+              class="nav-icon"
+              aria-hidden="true">
               <path d="M14.5 5.5 8 12l6.5 6.5"></path>
               <path d="M8.5 12H20"></path>
             </svg>
@@ -371,17 +452,29 @@ function renderHeader(showBack = false) {
       </div>
 
       <div class="toolbar-actions">
-        <button type="button" class="icon-button" id="appearance-button"
-          aria-label="表示の設定" title="表示の設定">
+        <button
+          type="button"
+          class="icon-button"
+          id="appearance-button"
+          aria-label="設定"
+          title="設定">
+
           <svg viewBox="0 0 24 24" aria-hidden="true">
             <path d="M12 8.2a3.8 3.8 0 1 0 0 7.6 3.8 3.8 0 0 0 0-7.6Z"></path>
-            <path d="m19.2 13.8 1.1.9-1.5 2.6-1.4-.5a7.8 7.8 0 0 1-1.5.9l-.2 1.5h-3l-.3-1.5a7.8 7.8 0 0 1-1.6-.6l-1.3.7-1.8-2.3 1-1.1a7.1 7.1 0 0 1-.2-1.7l-1.2-.8 1.2-2.7 1.5.3a7.5 7.5 0 0 1 1.4-1l.1-1.5h3l.4 1.4a7.5 7.5 0 0 1 1.6.6l1.3-.7 1.8 2.3-1 1.1c.2.6.3 1.2.3 1.8Z"></path>
+            <path d="M19.4 13.5a7.7 7.7 0 0 0 0-3l1.5-1.2-1.8-3.1-1.8.7a7.6 7.6 0 0 0-2.6-1.5L14.4 3h-3.6l-.3 2.4a7.6 7.6 0 0 0-2.6 1.5l-1.8-.7-1.8 3.1 1.5 1.2a7.7 7.7 0 0 0 0 3l-1.5 1.2 1.8 3.1 1.8-.7a7.6 7.6 0 0 0 2.6 1.5l.3 2.4h3.6l.3-2.4a7.6 7.6 0 0 0 2.6-1.5l1.8.7 1.8-3.1-1.5-1.2Z"></path>
           </svg>
         </button>
 
-        <button type="button" class="nav-button home-button" id="home-button"
-          aria-label="ホームに戻る" title="ホームに戻る">
-          <svg viewBox="0 0 24 24" aria-hidden="true" class="nav-icon home-icon">
+        <button
+          type="button"
+          class="nav-button home-button"
+          id="home-button"
+          aria-label="ホームに戻る"
+          title="ホームに戻る">
+
+          <svg viewBox="0 0 24 24"
+            class="nav-icon home-icon"
+            aria-hidden="true">
             <path d="m3.8 10.7 8.2-7 8.2 7"></path>
             <path d="M6.5 9.4v10h11v-10"></path>
             <path d="M10 19.4v-6h4v6"></path>
@@ -399,7 +492,7 @@ function attachNavigation() {
   if (appearanceButton) {
     appearanceButton.addEventListener(
       "click",
-      openAppearanceSettings
+      openSettingsMenu
     );
   }
 
@@ -415,101 +508,196 @@ function attachNavigation() {
   const backButton = document.getElementById("back-button");
 
   if (backButton) {
-    backButton.addEventListener("click", () => {
-      if (screen === "settings") {
-        renderHome();
-      } else if (screen === "quiz" || screen === "result") {
-        renderSettings();
-      } else if (screen === "appearance") {
-        returnFromAppearanceSettings();
-      }
-    });
+    backButton.addEventListener("click", handleBack);
   }
 }
 
-function renderAppearanceSettings() {
-  screen = "appearance";
+function handleBack() {
+  if (screen === "settings-menu") {
+    returnFromSettingsMenu();
+  } else if (
+    screen === "style-settings" ||
+    screen === "sound-settings"
+  ) {
+    renderSettingsMenu();
+  } else if (screen === "settings") {
+    renderHome();
+  } else if (screen === "quiz" || screen === "result") {
+    renderSettings();
+  } else {
+    renderHome();
+  }
+}
+
+/* 設定メニュー */
+
+function openSettingsMenu() {
+  settingsReturnScreen = screen;
+  settingsReturnAnswered = answered;
+  renderSettingsMenu();
+}
+
+function returnFromSettingsMenu() {
+  if (settingsReturnScreen === "quiz") {
+    const wasAnswered = settingsReturnAnswered;
+
+    renderQuestion();
+
+    if (wasAnswered) {
+      restoreAnsweredQuestion();
+    }
+  } else if (settingsReturnScreen === "result") {
+    renderResult();
+  } else if (settingsReturnScreen === "settings") {
+    renderSettings();
+  } else {
+    renderHome();
+  }
+}
+
+function renderSettingsMenu() {
+  screen = "settings-menu";
 
   app.innerHTML = `
     ${renderHeader(true)}
-    <section class="panel appearance-panel">
+
+    <section class="panel settings-menu-panel">
       <p class="eyebrow">PERSONALIZE</p>
-      <h1>表示の設定</h1>
-      <p class="intro">好きな色と明るさにカスタマイズできます。</p>
+      <h1>設定</h1>
+      <p class="intro">自分好みにカスタマイズできます。</p>
+
+      <button
+        class="settings-menu-item"
+        type="button"
+        id="open-style">
+
+        <span class="settings-menu-icon" aria-hidden="true">◐</span>
+
+        <span class="settings-menu-copy">
+          <strong>スタイル</strong>
+          <span>テーマ・メインカラーを変更</span>
+        </span>
+
+        <span class="settings-menu-arrow" aria-hidden="true">›</span>
+      </button>
+
+      <button
+        class="settings-menu-item"
+        type="button"
+        id="open-sound">
+
+        <span class="settings-menu-icon" aria-hidden="true">♫</span>
+
+        <span class="settings-menu-copy">
+          <strong>サウンド</strong>
+          <span>BGMの音量を変更</span>
+        </span>
+
+        <span class="settings-menu-arrow" aria-hidden="true">›</span>
+      </button>
+    </section>
+  `;
+
+  attachNavigation();
+
+  app.querySelector("#open-style").addEventListener(
+    "click",
+    renderStyleSettings
+  );
+
+  app.querySelector("#open-sound").addEventListener(
+    "click",
+    renderSoundSettings
+  );
+}
+
+/* スタイル設定 */
+
+function renderStyleSettings() {
+  screen = "style-settings";
+
+  app.innerHTML = `
+    ${renderHeader(true)}
+
+    <section class="panel appearance-panel">
+      <p class="eyebrow">STYLE</p>
+      <h1>スタイル</h1>
+      <p class="intro">画面の明るさとメインカラーを選べます。</p>
 
       <section class="appearance-section">
         <h2>テーマ</h2>
-        <p class="muted">画面全体の明るさを選びます。</p>
 
-        <div class="theme-options" role="group" aria-label="テーマ">
-          <button type="button"
-            class="theme-option ${appearance.theme === "light" ? "is-active" : ""}"
-            data-theme-choice="light"
-            aria-pressed="${appearance.theme === "light"}">
-            <span class="theme-preview theme-preview-light" aria-hidden="true">
-              <i></i><i></i><i></i>
-            </span>
-            <span>ライト</span>
-            <span class="option-check">${appearance.theme === "light" ? "✓" : ""}</span>
-          </button>
+        <div class="theme-options">
+          ${[
+            { id: "light", name: "ライト" },
+            { id: "dark", name: "ダーク" }
+          ].map(item => `
+            <button
+              type="button"
+              class="theme-option ${
+                appearance.theme === item.id ? "is-active" : ""
+              }"
+              data-theme-choice="${item.id}"
+              aria-pressed="${appearance.theme === item.id}">
 
-          <button type="button"
-            class="theme-option ${appearance.theme === "dark" ? "is-active" : ""}"
-            data-theme-choice="dark"
-            aria-pressed="${appearance.theme === "dark"}">
-            <span class="theme-preview theme-preview-dark" aria-hidden="true">
-              <i></i><i></i><i></i>
-            </span>
-            <span>ダーク</span>
-            <span class="option-check">${appearance.theme === "dark" ? "✓" : ""}</span>
-          </button>
+              <span
+                class="theme-preview theme-preview-${item.id}"
+                aria-hidden="true">
+                <i></i><i></i><i></i>
+              </span>
+
+              <span>${item.name}</span>
+
+              <span class="option-check">
+                ${appearance.theme === item.id ? "✓" : ""}
+              </span>
+            </button>
+          `).join("")}
         </div>
       </section>
 
       <section class="appearance-section">
-        <h2>スタイル</h2>
-        <p class="muted">アプリのアクセントになるメインカラーです。</p>
+        <h2>メインカラー</h2>
+        <p class="muted">
+          ボタンや選択状態、進捗バーに反映されます。
+        </p>
 
         <div class="accent-grid">
           ${ACCENTS.map(item => `
-            <button type="button"
-              class="accent-option ${appearance.accent === item.id ? "is-active" : ""}"
+            <button
+              type="button"
+              class="accent-option ${
+                appearance.accent === item.id ? "is-active" : ""
+              }"
               data-accent-choice="${item.id}"
               aria-pressed="${appearance.accent === item.id}">
-              <span class="accent-swatch" style="--swatch:${item.color}"
-                aria-hidden="true">${appearance.accent === item.id ? "✓" : ""}</span>
+
+              <span
+                class="accent-swatch"
+                style="--swatch:${item.color}"
+                aria-hidden="true">
+                ${appearance.accent === item.id ? "✓" : ""}
+              </span>
+
               <span>${item.name}</span>
             </button>
           `).join("")}
         </div>
       </section>
 
-      <p class="settings-save-note" role="status">
-        選んだ設定はこのブラウザに自動保存されます。
+      <p class="settings-save-note">
+        選んだ設定は自動保存されます。
       </p>
-
-      <button type="button" class="button button-secondary button-wide"
-        id="appearance-done">戻る</button>
     </section>
   `;
 
   attachNavigation();
 
-  app.querySelector("#back-button").addEventListener(
-    "click",
-    returnFromAppearanceSettings
-  );
-
-  app.querySelector("#appearance-done").addEventListener(
-    "click",
-    returnFromAppearanceSettings
-  );
-
   app.querySelectorAll("[data-theme-choice]").forEach(button => {
     button.addEventListener("click", () => {
       appearance.theme = button.dataset.themeChoice;
       applyAppearance();
-      renderAppearanceSettings();
+      renderStyleSettings();
     });
   });
 
@@ -517,20 +705,95 @@ function renderAppearanceSettings() {
     button.addEventListener("click", () => {
       appearance.accent = button.dataset.accentChoice;
       applyAppearance();
-      renderAppearanceSettings();
+      renderStyleSettings();
     });
   });
 }
+
+/* サウンド設定 */
+
+function renderSoundSettings() {
+  screen = "sound-settings";
+
+  app.innerHTML = `
+    ${renderHeader(true)}
+
+    <section class="panel sound-panel">
+      <p class="eyebrow">SOUND</p>
+      <h1>サウンド</h1>
+      <p class="intro">BGMの音量を調節できます。</p>
+
+      <div class="volume-card">
+        <div class="volume-heading">
+          <label for="volume-slider">BGM音量</label>
+
+          <strong id="volume-value">
+            ${soundSettings.volume === 0
+              ? "オフ"
+              : `${soundSettings.volume} / 5`}
+          </strong>
+        </div>
+
+        <input
+          id="volume-slider"
+          class="volume-slider"
+          type="range"
+          min="0"
+          max="5"
+          step="1"
+          value="${soundSettings.volume}"
+          aria-label="BGM音量"
+        >
+      </div>
+    </section>
+  `;
+
+  attachNavigation();
+
+  const slider = app.querySelector("#volume-slider");
+  const value = app.querySelector("#volume-value");
+
+  function updateVolumeProgress() {
+    const progress = (soundSettings.volume / 5) * 100;
+
+    slider.style.setProperty(
+      "--volume-progress",
+      `${progress}%`
+    );
+  }
+
+  updateVolumeProgress();
+
+  slider.addEventListener("input", event => {
+    soundSettings.volume = Number(event.target.value);
+
+    updateVolumeProgress();
+    applyVolume();
+
+    value.textContent = soundSettings.volume === 0
+      ? "オフ"
+      : `${soundSettings.volume} / 5`;
+
+    if (soundSettings.volume > 0) {
+      startBGM();
+    }
+  });
+}
+
+/* ホーム */
 
 function renderHome() {
   screen = "home";
 
   app.innerHTML = `
     ${renderHeader(false)}
-    <section class="panel">
+
+    <section class="panel home-panel">
       <p class="eyebrow">CULTURAL FESTIVAL</p>
-      <h1>手相クイズ</h1>
-      <p class="intro">覚える量多くて大変だけどまぁがんばろう。</p>
+      <h1 class="home-title">手相クイズ</h1>
+      <p class="intro home-intro">
+        覚える量多くて大変だけどまぁがんばろう。
+      </p>
 
       <h2>出題モードを選ぶ</h2>
 
@@ -541,10 +804,19 @@ function renderHome() {
             : countQuestions([mode.id]);
 
           return `
-            <button type="button" class="mode-card"
+            <button
+              type="button"
+              class="mode-card"
               data-open-mode="${mode.id}">
-              <span class="mode-name">${escapeHTML(mode.name)}</span>
-              <span class="mode-description">${escapeHTML(mode.description)}</span>
+
+              <span class="mode-name">
+                ${escapeHTML(mode.name)}
+              </span>
+
+              <span class="mode-description">
+                ${escapeHTML(mode.description)}
+              </span>
+
               ${mode.id !== "multiple"
                 ? `<span class="mode-count">登録問題：${count}問</span>`
                 : ""}
@@ -570,6 +842,8 @@ function renderHome() {
   });
 }
 
+/* クイズ設定 */
+
 function renderSettings() {
   screen = "settings";
 
@@ -579,27 +853,38 @@ function renderSettings() {
 
   app.innerHTML = `
     ${renderHeader(true)}
-    <section class="panel">
+
+    <section class="panel settings-panel">
       <p class="eyebrow">QUIZ SETTINGS</p>
 
-      <h1>${isMultiple
-        ? "複数選択モード"
-        : escapeHTML(
-            MODES.find(mode => mode.id === currentMode)?.name || "クイズ"
-          )}</h1>
+      <h1>${
+        isMultiple
+          ? "複数選択モード"
+          : escapeHTML(
+              MODES.find(mode => mode.id === currentMode)?.name || "クイズ"
+            )
+      }</h1>
 
       ${isMultiple ? `
         <h2>1. 出題ジャンルを選ぶ</h2>
-        <p class="muted">出題したいジャンルにチェックを入れてください。</p>
+        <p class="muted">
+          出題したいジャンルにチェックを入れてください。
+        </p>
 
         <div class="genre-check-list">
           ${MODES.filter(mode => mode.id !== "multiple").map(mode => `
             <label class="genre-check">
-              <input type="checkbox" value="${mode.id}" data-genre-check
+              <input
+                type="checkbox"
+                value="${mode.id}"
+                data-genre-check
                 ${selectedModes.includes(mode.id) ? "checked" : ""}>
+
               <span class="genre-check-text">
                 <strong>${escapeHTML(mode.name)}</strong>
-                <span class="mode-count">登録問題：${countQuestions([mode.id])}問</span>
+                <span class="mode-count">
+                  登録問題：${countQuestions([mode.id])}問
+                </span>
               </span>
             </label>
           `).join("")}
@@ -607,28 +892,44 @@ function renderSettings() {
 
         <h2>2. 問題数を選ぶ</h2>
       ` : `
-        <p class="intro">${escapeHTML(
-          MODES.find(mode => mode.id === currentMode)?.description || ""
-        )}</p>
+        <p class="intro">
+          ${escapeHTML(
+            MODES.find(mode => mode.id === currentMode)?.description || ""
+          )}
+        </p>
 
-        <p class="muted">このジャンルの問題だけが出題されます。</p>
+        <p class="muted">
+          このジャンルの問題だけが出題されます。
+        </p>
+
         <h2>問題数を選ぶ</h2>
       `}
 
       <div class="count-control">
-        <button type="button" class="button button-secondary" id="minus"
+        <button
+          type="button"
+          class="button button-secondary"
+          id="minus"
           aria-label="問題数を減らす">−</button>
 
         <strong id="count-value">${questionCount}問</strong>
 
-        <button type="button" class="button button-secondary" id="plus"
+        <button
+          type="button"
+          class="button button-secondary"
+          id="plus"
           aria-label="問題数を増やす">＋</button>
       </div>
 
-      <p class="muted" id="available-count">選択中の問題：${available}問</p>
+      <p class="muted" id="available-count">
+        選択中の問題：${available}問
+      </p>
+
       <p class="notice" id="settings-message" role="status"></p>
 
-      <button type="button" class="button button-primary button-wide"
+      <button
+        type="button"
+        class="button button-primary button-wide"
         id="start-button">クイズを開始</button>
     </section>
   `;
@@ -636,8 +937,9 @@ function renderSettings() {
   attachNavigation();
 
   function updateAvailable() {
-    const modes = isMultiple ? selectedModes : [currentMode];
-    const total = countQuestions(modes);
+    const total = countQuestions(
+      isMultiple ? selectedModes : [currentMode]
+    );
 
     app.querySelector("#available-count").textContent =
       `選択中の問題：${total}問`;
@@ -651,8 +953,7 @@ function renderSettings() {
       message.textContent =
         "出題ジャンルを1つ以上選んでください。";
     } else if (total === 0) {
-      message.textContent =
-        "出題できる問題がありません。";
+      message.textContent = "出題できる問題がありません。";
     } else if (questionCount < total) {
       message.textContent =
         `登録問題は${total}問です。今回は先頭の問題を含め、ランダムに${questionCount}問出題します。`;
@@ -660,8 +961,7 @@ function renderSettings() {
       message.textContent =
         `登録問題は${total}問です。足りない分は登録問題からランダムに再出題します。`;
     } else {
-      message.textContent =
-        `登録された${total}問を出題します。`;
+      message.textContent = `登録された${total}問を出題します。`;
     }
   }
 
@@ -695,9 +995,10 @@ function renderSettings() {
 
   app.querySelector("#start-button").addEventListener("click", () => {
     const modes = isMultiple ? selectedModes : [currentMode];
+    const message = app.querySelector("#settings-message");
 
     if (modes.length === 0) {
-      app.querySelector("#settings-message").textContent =
+      message.textContent =
         "出題ジャンルを1つ以上選んでください。";
       return;
     }
@@ -707,22 +1008,28 @@ function renderSettings() {
     for (const modeId of modes) {
       if (!LINE_MODES.includes(modeId)) continue;
 
-      const questions = Array.isArray(bank[modeId]) ? bank[modeId] : [];
+      const questions = Array.isArray(bank[modeId])
+        ? bank[modeId]
+        : [];
 
       const first = questions[0];
       const rest = questions.slice(1);
 
+      const modeName =
+        MODES.find(mode => mode.id === modeId)?.name || modeId;
+
       if (!first || !isValidQuestion(first, modeId, 0)) {
-        app.querySelector("#settings-message").textContent =
-          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の1問目は、4つの選択肢が必要です。`;
+        message.textContent =
+          `${modeName}の1問目は、4つの選択肢が必要です。`;
         return;
       }
 
-      if (rest.some((question, index) =>
-        !isValidQuestion(question, modeId, index + 1)
+      if (rest.some(
+        (question, index) =>
+          !isValidQuestion(question, modeId, index + 1)
       )) {
-        app.querySelector("#settings-message").textContent =
-          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の2問目以降は、正解の選択肢を1つだけ登録してください。`;
+        message.textContent =
+          `${modeName}の2問目以降は、正解の選択肢を1つだけ登録してください。`;
         return;
       }
 
@@ -731,8 +1038,8 @@ function renderSettings() {
       );
 
       if (answerPool.length < 4) {
-        app.querySelector("#settings-message").textContent =
-          `${MODES.find(mode => mode.id === modeId)?.name || modeId}の2〜9問目に、少なくとも4種類の異なる正解を登録してください。`;
+        message.textContent =
+          `${modeName}の2〜9問目に、少なくとも4種類の異なる正解を登録してください。`;
         return;
       }
     }
@@ -740,7 +1047,7 @@ function renderSettings() {
     quizQuestions = buildQuizQuestions(modes, questionCount);
 
     if (quizQuestions.length === 0) {
-      app.querySelector("#settings-message").textContent =
+      message.textContent =
         "このモードはまだ準備中です。てか需要が分からないので要望なかったら多分一生準備中です。";
       return;
     }
@@ -755,22 +1062,32 @@ function renderSettings() {
   updateAvailable();
 }
 
+/* 問題表示 */
+
 function renderQuestion() {
   screen = "quiz";
 
   const question = quizQuestions[currentIndex];
+
+  if (!question) {
+    renderResult();
+    return;
+  }
+
   answered = false;
 
   const modeName =
     MODES.find(mode => mode.id === question.mode)?.name || "クイズ";
 
-  const imagePath = typeof question.image === "string"
-    ? question.image.trim()
-    : "";
+  const imagePath =
+    typeof question.image === "string"
+      ? question.image.trim()
+      : "";
 
   const imageHTML = imagePath ? `
     <div class="question-image-wrap">
-      <img class="question-image"
+      <img
+        class="question-image"
         src="${escapeHTML(imagePath)}"
         alt="問題の画像"
         onerror="this.closest('.question-image-wrap').hidden=true">
@@ -779,7 +1096,8 @@ function renderQuestion() {
 
   app.innerHTML = `
     ${renderHeader(true)}
-    <section class="panel">
+
+    <section class="panel quiz-panel">
       <div class="quiz-top">
         <span class="eyebrow">${escapeHTML(modeName)}</span>
         <span class="progress-label">
@@ -788,28 +1106,31 @@ function renderQuestion() {
       </div>
 
       <div class="progress-track">
-        <div class="progress-fill"
-          style="width:${((currentIndex + 1) / quizQuestions.length) * 100}%">
+        <div
+          class="progress-fill"
+          style="width:${
+            ((currentIndex + 1) / quizQuestions.length) * 100
+          }%">
         </div>
       </div>
 
       ${imageHTML}
 
-      <h1 class="question-title" style="white-space: pre-line;">${escapeHTML(question.question)}</h1>
+      <h1 class="question-title" style="white-space:pre-line">${escapeHTML(question.question)}</h1>
 
       <div class="choices">
         ${question.choices.map((choice, index) => `
-          <button type="button" class="choice-button"
-            data-choice="${index}">
-            <span class="choice-letter">${["A", "B", "C", "D"][index]}</span>
-            <span style="white-space: pre-line; font-weight: 700;">${escapeHTML(choice)}</span>
-          </button>
+          <button
+            type="button"
+            class="choice-button"
+            data-choice="${index}"><span class="choice-letter">${["A", "B", "C", "D"][index]}</span><span class="choice-text">${escapeHTML(choice)}</span></button>
         `).join("")}
       </div>
 
       <div id="feedback"></div>
 
-      <button type="button"
+      <button
+        type="button"
         class="button button-primary button-wide hidden"
         id="next-button">次の問題へ</button>
     </section>
@@ -852,9 +1173,14 @@ function restoreAnsweredQuestion() {
 
   if (feedback) {
     feedback.className = "feedback feedback-correct";
+
     feedback.innerHTML = `
       <h2>回答済み</h2>
-      <p><strong>正解：</strong>${escapeHTML(question.choices[question.answer])}</p>
+      <p>
+        <strong>正解：</strong>${escapeHTML(
+          question.choices[question.answer]
+        )}
+      </p>
       <p>${escapeHTML(question.explanation)}</p>
     `;
   }
@@ -863,6 +1189,7 @@ function restoreAnsweredQuestion() {
 
   if (nextButton) {
     nextButton.classList.remove("hidden");
+
     nextButton.textContent =
       currentIndex === quizQuestions.length - 1
         ? "結果を見る"
@@ -878,9 +1205,7 @@ function chooseAnswer(choiceIndex) {
   const question = quizQuestions[currentIndex];
   const isCorrect = choiceIndex === question.answer;
 
-  if (isCorrect) {
-    correctCount++;
-  }
+  if (isCorrect) correctCount++;
 
   app.querySelectorAll("[data-choice]").forEach((button, index) => {
     button.disabled = true;
@@ -895,54 +1220,65 @@ function chooseAnswer(choiceIndex) {
   const feedback = app.querySelector("#feedback");
 
   feedback.className =
-    `feedback ${isCorrect ? "feedback-correct" : "feedback-incorrect"}`;
+    `feedback ${
+      isCorrect ? "feedback-correct" : "feedback-incorrect"
+    }`;
 
   feedback.innerHTML = `
     <h2>${isCorrect ? "正解！" : "不正解"}</h2>
-    <p><strong>正解：</strong>${escapeHTML(question.choices[question.answer])}</p>
+    <p>
+      <strong>正解：</strong>${escapeHTML(
+        question.choices[question.answer]
+      )}
+    </p>
     <p>${escapeHTML(question.explanation)}</p>
   `;
 
   const nextButton = app.querySelector("#next-button");
 
   nextButton.classList.remove("hidden");
+
   nextButton.textContent =
     currentIndex === quizQuestions.length - 1
       ? "結果を見る"
       : "次の問題へ";
 }
 
+/* 結果 */
+
 function renderResult() {
   screen = "result";
 
   const total = quizQuestions.length;
-
   const percentage = total > 0
     ? Math.round((correctCount / total) * 100)
     : 0;
 
   app.innerHTML = `
     ${renderHeader(true)}
-    <section class="panel result-panel" style="color:var(--text)">
+
+    <section class="panel result-panel">
       <p class="eyebrow">QUIZ COMPLETE</p>
       <h1>スクショでリーダーに自慢しよう</h1>
 
-      <p class="result-score" style="color:var(--text)">
+      <p class="result-score">
         ${correctCount} <span>/ ${total}問正解</span>
       </p>
 
-      <p class="result-percentage" style="color:var(--text)">
-        正答率 ${percentage}%
-      </p>
+      <p class="result-percentage">正答率 ${percentage}%</p>
 
       <div class="result-bar">
         <div style="width:${percentage}%"></div>
       </div>
 
-      <button type="button" class="button button-primary button-wide"
+      <button
+        type="button"
+        class="button button-primary button-wide"
         id="retry-button">もう一度挑戦する</button>
 
-      <button type="button" class="button button-secondary button-wide"
+      <button
+        type="button"
+        class="button button-secondary button-wide"
         id="home-result-button">ホームに戻る</button>
     </section>
   `;
@@ -968,11 +1304,14 @@ function renderResult() {
     renderQuestion();
   });
 
-  app.querySelector("#home-result-button").addEventListener("click", () => {
-    screen = "home";
-    renderHome();
-  });
+  app.querySelector("#home-result-button").addEventListener(
+    "click",
+    renderHome
+  );
 }
 
+/* 初期化 */
+
 applyAppearance();
+applyVolume();
 renderHome();
