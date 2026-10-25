@@ -1,4 +1,3 @@
-
 const app = document.getElementById("app");
 
 const MODES = [
@@ -81,11 +80,12 @@ function loadSoundSettings() {
 let appearance = loadAppearance();
 let soundSettings = loadSoundSettings();
 
-/* BGM：曲の終了後に3秒空けて再生 */
+/* BGM：iOS対応・曲の終了後に3秒空けて再生 */
 
-const bgm = new Audio("audio/bgm.m4a");
+const bgm = new Audio("./audio/bgm.m4a");
 bgm.loop = false;
 bgm.preload = "auto";
+bgm.playsInline = true;
 
 let audioStarted = false;
 let bgmTimer = null;
@@ -126,7 +126,10 @@ function startBGM() {
   }
 
   clearBgmTimer();
-  bgm.volume = soundSettings.volume / 5;
+
+  try {
+    bgm.volume = soundSettings.volume / 5;
+  } catch (error) {}
 
   if (!bgm.paused) {
     audioStarted = true;
@@ -135,31 +138,48 @@ function startBGM() {
 
   const requestId = ++playRequestId;
 
-  bgm.play()
-    .then(() => {
-      if (
-        requestId !== playRequestId ||
-        soundSettings.volume <= 0
-      ) {
-        bgm.pause();
-        return;
-      }
+  try {
+    const playPromise = bgm.play();
 
-      audioStarted = true;
-    })
-    .catch(() => {
-      // 自動再生が許可されない場合は、次の操作で再試行する。
-    });
+    if (playPromise && typeof playPromise.then === "function") {
+      playPromise
+        .then(() => {
+          if (
+            requestId !== playRequestId ||
+            soundSettings.volume <= 0
+          ) {
+            bgm.pause();
+            return;
+          }
+
+          audioStarted = true;
+          console.info("BGM playback started");
+        })
+        .catch(error => {
+          audioStarted = false;
+          console.error(
+            "BGM playback failed:",
+            error.name,
+            error.message,
+            bgm.currentSrc
+          );
+        });
+    }
+  } catch (error) {
+    audioStarted = false;
+    console.error("BGM playback error:", error);
+  }
 }
 
 function applyVolume() {
-  bgm.volume = soundSettings.volume / 5;
+  try {
+    bgm.volume = soundSettings.volume / 5;
+  } catch (error) {}
+
   saveSoundSettings();
 
   if (soundSettings.volume === 0) {
     stopBGM();
-  } else if (audioStarted && !bgm.paused) {
-    bgm.volume = soundSettings.volume / 5;
   }
 }
 
@@ -179,7 +199,7 @@ bgm.addEventListener("ended", () => {
   }, 3000);
 });
 
-document.addEventListener("pointerdown", () => {
+function handleBgmInteraction() {
   if (
     soundSettings.volume > 0 &&
     bgm.paused &&
@@ -187,7 +207,23 @@ document.addEventListener("pointerdown", () => {
   ) {
     startBGM();
   }
-}, { passive: true });
+}
+
+// iPhoneで自動再生が制限された場合、ユーザー操作をきっかけに再生する。
+document.addEventListener(
+  "touchend",
+  handleBgmInteraction,
+  { passive: true }
+);
+document.addEventListener("click", handleBgmInteraction);
+
+bgm.addEventListener("error", () => {
+  console.error(
+    "BGM file loading failed:",
+    bgm.error ? bgm.error.code : "unknown",
+    bgm.currentSrc
+  );
+});
 
 /* 外観 */
 
