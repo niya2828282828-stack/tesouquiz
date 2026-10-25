@@ -8,7 +8,7 @@
  * ・HTML / CSS / JS も初回アクセス時に保存
  */
 
-const CACHE_NAME = "tesouquiz-cache-v5";
+const CACHE_NAME = "tesouquiz-cache-v6";
 
 const APP_FILES = [
   "./",
