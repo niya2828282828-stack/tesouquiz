@@ -83,7 +83,7 @@ let soundSettings = loadSoundSettings();
 
 /* BGM */
 
-const bgm = new Audio("./audio/bgm.m4a");
+const bgm = new Audio("./audio/bgm.mp3");
 
 bgm.loop = false;
 bgm.preload = "auto";
