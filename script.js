@@ -64,6 +64,7 @@ function loadSoundSettings() {
     const saved = JSON.parse(
       localStorage.getItem(SOUND_KEY) || "{}"
     );
+
     const volume = Number(saved.volume);
 
     return {
@@ -80,17 +81,17 @@ function loadSoundSettings() {
 let appearance = loadAppearance();
 let soundSettings = loadSoundSettings();
 
-/* BGM：iOS対応・曲の終了後に3秒空けて再生 */
+/* BGM */
 
 const bgm = new Audio("./audio/bgm.m4a");
+
 bgm.loop = false;
 bgm.preload = "auto";
 bgm.playsInline = true;
+bgm.volume = soundSettings.volume / 5;
 
-let audioStarted = false;
 let bgmTimer = null;
-let playRequestId = 0;
-let lastBgmError = null;
+let bgmStartedByUser = false;
 
 function saveSoundSettings() {
   try {
@@ -108,122 +109,93 @@ function clearBgmTimer() {
   }
 }
 
-function stopBGM() {
-  playRequestId++;
-  clearBgmTimer();
-  bgm.pause();
-  audioStarted = false;
-}
-
-function startBGM() {
-  if (soundSettings.volume <= 0) {
-    stopBGM();
-    return;
-  }
-
-  clearBgmTimer();
-
-  try {
-    bgm.volume = soundSettings.volume / 5;
-  } catch (error) {}
-
-  if (!bgm.paused) {
-    audioStarted = true;
-    return;
-  }
-
-  const requestId = ++playRequestId;
-  lastBgmError = null;
-
-  try {
-    /*
-      play() はユーザー操作のイベント内から直接実行する。
-      Promiseの結果を待つ前に、再生要求を発行する。
-    */
-    const playPromise = bgm.play();
-
-    if (playPromise && typeof playPromise.then === "function") {
-      playPromise
-        .then(() => {
-          if (
-            requestId !== playRequestId ||
-            soundSettings.volume <= 0
-          ) {
-            bgm.pause();
-            return;
-          }
-
-          audioStarted = true;
-          lastBgmError = null;
-          console.info("BGM playback started:", bgm.currentSrc);
-        })
-        .catch(error => {
-          audioStarted = false;
-          lastBgmError = error;
-
-          console.error(
-            "BGM playback failed:",
-            error.name,
-            error.message,
-            "URL:",
-            bgm.currentSrc || bgm.src
-          );
-        });
-    }
-  } catch (error) {
-    audioStarted = false;
-    lastBgmError = error;
-
-    console.error(
-      "BGM playback error:",
-      error.name,
-      error.message,
-      "URL:",
-      bgm.currentSrc || bgm.src
-    );
-  }
-}
-
+/*
+  音量変更は音量だけに反映する。
+  音量0でも再生を停止したり、再生位置を戻したりしない。
+*/
 function applyVolume() {
-  try {
-    bgm.volume = soundSettings.volume / 5;
-  } catch (error) {}
-
+  bgm.volume = soundSettings.volume / 5;
   saveSoundSettings();
 }
 
-bgm.addEventListener("ended", () => {
-  audioStarted = false;
-
+/*
+  ユーザー操作から呼び出して再生する。
+  再生エラーはコンソールに記録する。
+*/
+function startBGM() {
   if (soundSettings.volume <= 0) return;
 
   clearBgmTimer();
 
+  bgm.play().then(() => {
+    bgmStartedByUser = true;
+  }).catch(error => {
+    console.error(
+      "BGMの再生に失敗:",
+      error.name,
+      error.message
+    );
+  });
+}
+
+/*
+  曲が終わったら3秒待ってから次の再生を試みる。
+*/
+bgm.addEventListener("ended", () => {
+  clearBgmTimer();
+
+  if (!bgmStartedByUser || soundSettings.volume <= 0) {
+    return;
+  }
+
   bgmTimer = setTimeout(() => {
     bgmTimer = null;
 
-    if (soundSettings.volume > 0) {
+    if (bgmStartedByUser && soundSettings.volume > 0) {
       startBGM();
     }
   }, 3000);
 });
 
-function handleBgmInteraction() {
-  if (soundSettings.volume <= 0) return;
-  if (!bgm.paused) return;
+/*
+  読み込み・再生状況の記録。
+*/
+bgm.addEventListener("error", () => {
+  console.error(
+    "BGMファイルの読み込みに失敗:",
+    bgm.error ? bgm.error.code : "unknown",
+    bgm.currentSrc || bgm.src
+  );
+});
 
-  /*
-    再生要求をユーザー操作のイベント内で直接発行する。
-    setTimeoutなどを挟まず、iOSのユーザー操作判定を維持する。
-  */
-  startBGM();
-}
+bgm.addEventListener("loadedmetadata", () => {
+  console.info(
+    "BGMのメタデータを読み込みました:",
+    "duration =", bgm.duration,
+    "URL =", bgm.currentSrc
+  );
+});
+
+bgm.addEventListener("playing", () => {
+  console.info("BGMを再生しています");
+});
 
 /*
-  タッチ操作とクリック操作の両方に対応。
-  同じ操作からイベントが重複して発生しても、
-  再生中ならstartBGM内で処理を終了する。
+  タッチ操作・クリック操作のイベントは重複登録しない。
+  開始ボタン以外の操作でも再生を試みるが、
+  iOSでは操作の種類やタイミングによって再生が
+  許可されない場合がある。
 */
+function handleBgmInteraction() {
+  if (
+    soundSettings.volume > 0 &&
+    bgm.paused &&
+    bgmTimer === null
+  ) {
+    startBGM();
+  }
+}
+
 document.addEventListener(
   "touchend",
   handleBgmInteraction,
@@ -234,37 +206,6 @@ document.addEventListener(
   "click",
   handleBgmInteraction
 );
-
-/* 音声ファイルの読み込み状況を記録 */
-
-bgm.addEventListener("error", () => {
-  const errorCode = bgm.error ? bgm.error.code : "unknown";
-
-  console.error(
-    "BGM file loading failed:",
-    errorCode,
-    bgm.currentSrc || bgm.src
-  );
-});
-
-bgm.addEventListener("loadedmetadata", () => {
-  console.info(
-    "BGM metadata loaded:",
-    "duration =", bgm.duration,
-    "URL =", bgm.currentSrc
-  );
-});
-
-bgm.addEventListener("playing", () => {
-  audioStarted = true;
-  console.info("BGM is playing");
-});
-
-bgm.addEventListener("pause", () => {
-  if (bgm.ended || soundSettings.volume <= 0) {
-    audioStarted = false;
-  }
-});
 
 /* 外観 */
 
@@ -851,7 +792,12 @@ function renderSoundSettings() {
       ? "オフ"
       : `${soundSettings.volume} / 5`;
 
-    if (soundSettings.volume > 0) {
+    /*
+      音量0にしても停止しない。
+      0より大きい音量に変更した場合だけ、
+      再生中でなければ再生を試みる。
+    */
+    if (soundSettings.volume > 0 && bgm.paused) {
       startBGM();
     }
   });
@@ -1071,6 +1017,15 @@ function renderSettings() {
   });
 
   app.querySelector("#start-button").addEventListener("click", () => {
+    /*
+      iPhoneでの再生許可を得るため、
+      ユーザーが開始ボタンを押した操作の中で
+      直接再生を試みる。
+    */
+    if (soundSettings.volume > 0 && bgm.paused) {
+      startBGM();
+    }
+
     const modes = isMultiple ? selectedModes : [currentMode];
     const message = app.querySelector("#settings-message");
 
