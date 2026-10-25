@@ -90,6 +90,7 @@ bgm.playsInline = true;
 let audioStarted = false;
 let bgmTimer = null;
 let playRequestId = 0;
+let lastBgmError = null;
 
 function saveSoundSettings() {
   try {
@@ -111,11 +112,6 @@ function stopBGM() {
   playRequestId++;
   clearBgmTimer();
   bgm.pause();
-
-  try {
-    bgm.currentTime = 0;
-  } catch (error) {}
-
   audioStarted = false;
 }
 
@@ -137,8 +133,13 @@ function startBGM() {
   }
 
   const requestId = ++playRequestId;
+  lastBgmError = null;
 
   try {
+    /*
+      play() はユーザー操作のイベント内から直接実行する。
+      Promiseの結果を待つ前に、再生要求を発行する。
+    */
     const playPromise = bgm.play();
 
     if (playPromise && typeof playPromise.then === "function") {
@@ -153,21 +154,33 @@ function startBGM() {
           }
 
           audioStarted = true;
-          console.info("BGM playback started");
+          lastBgmError = null;
+          console.info("BGM playback started:", bgm.currentSrc);
         })
         .catch(error => {
           audioStarted = false;
+          lastBgmError = error;
+
           console.error(
             "BGM playback failed:",
             error.name,
             error.message,
-            bgm.currentSrc
+            "URL:",
+            bgm.currentSrc || bgm.src
           );
         });
     }
   } catch (error) {
     audioStarted = false;
-    console.error("BGM playback error:", error);
+    lastBgmError = error;
+
+    console.error(
+      "BGM playback error:",
+      error.name,
+      error.message,
+      "URL:",
+      bgm.currentSrc || bgm.src
+    );
   }
 }
 
@@ -177,10 +190,6 @@ function applyVolume() {
   } catch (error) {}
 
   saveSoundSettings();
-
-  if (soundSettings.volume === 0) {
-    stopBGM();
-  }
 }
 
 bgm.addEventListener("ended", () => {
@@ -200,29 +209,61 @@ bgm.addEventListener("ended", () => {
 });
 
 function handleBgmInteraction() {
-  if (
-    soundSettings.volume > 0 &&
-    bgm.paused &&
-    bgmTimer === null
-  ) {
-    startBGM();
-  }
+  if (soundSettings.volume <= 0) return;
+  if (!bgm.paused) return;
+
+  /*
+    再生要求をユーザー操作のイベント内で直接発行する。
+    setTimeoutなどを挟まず、iOSのユーザー操作判定を維持する。
+  */
+  startBGM();
 }
 
-// iPhoneで自動再生が制限された場合、ユーザー操作をきっかけに再生する。
+/*
+  タッチ操作とクリック操作の両方に対応。
+  同じ操作からイベントが重複して発生しても、
+  再生中ならstartBGM内で処理を終了する。
+*/
 document.addEventListener(
   "touchend",
   handleBgmInteraction,
   { passive: true }
 );
-document.addEventListener("click", handleBgmInteraction);
+
+document.addEventListener(
+  "click",
+  handleBgmInteraction
+);
+
+/* 音声ファイルの読み込み状況を記録 */
 
 bgm.addEventListener("error", () => {
+  const errorCode = bgm.error ? bgm.error.code : "unknown";
+
   console.error(
     "BGM file loading failed:",
-    bgm.error ? bgm.error.code : "unknown",
-    bgm.currentSrc
+    errorCode,
+    bgm.currentSrc || bgm.src
   );
+});
+
+bgm.addEventListener("loadedmetadata", () => {
+  console.info(
+    "BGM metadata loaded:",
+    "duration =", bgm.duration,
+    "URL =", bgm.currentSrc
+  );
+});
+
+bgm.addEventListener("playing", () => {
+  audioStarted = true;
+  console.info("BGM is playing");
+});
+
+bgm.addEventListener("pause", () => {
+  if (bgm.ended || soundSettings.volume <= 0) {
+    audioStarted = false;
+  }
 });
 
 /* 外観 */
